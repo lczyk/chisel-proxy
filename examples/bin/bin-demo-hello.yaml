@@ -1,0 +1,8 @@
+package: bin-demo-hello
+
+default-track: "1.0"
+
+slices:
+  bins:
+    contents:
+      /usr/bin/demo-hello:

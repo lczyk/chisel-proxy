@@ -30,13 +30,17 @@ func runServe(args []string) int {
 		return 1
 	}
 
-	pkgs, sliceFiles, err := buildInputs(pos, deb.Defaults{Arch: arch, Version: f.version})
+	pkgs, bins, sliceFiles, err := buildInputs(pos, deb.Defaults{Arch: arch, Version: f.version})
 	if err != nil {
 		errf(err)
 		return 1
 	}
 	if len(sliceFiles) > 0 {
 		errf(fmt.Errorf("slice (.yaml) inputs only apply to 'cut'; serve has no release to splice into"))
+		return 2
+	}
+	if len(bins) > 0 {
+		errf(fmt.Errorf("bin inputs only apply to 'cut'; serve does not set up the TLS interception bins need"))
 		return 2
 	}
 

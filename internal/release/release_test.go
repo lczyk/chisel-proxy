@@ -191,3 +191,32 @@ func TestChoosePriorityShiftsForPositiveSlot(t *testing.T) {
 	assert.That(t, p >= 1, "proxy priority must be strictly positive")
 	assert.Equal(t, mapValue(archives.Content[1], "priority").Value, "2")
 }
+
+func TestFormatVersion(t *testing.T) {
+	dir := t.TempDir()
+	write := func(s string) {
+		assert.NoError(t, os.WriteFile(filepath.Join(dir, "chisel.yaml"), []byte(s), 0644))
+	}
+	write("format: v3\nrelease: ubuntu-24.04\n")
+	n, err := FormatVersion(dir)
+	assert.NoError(t, err)
+	assert.Equal(t, n, 3)
+
+	write("format: v1\n")
+	n, err = FormatVersion(dir)
+	assert.NoError(t, err)
+	assert.Equal(t, n, 1)
+
+	write("archives: {}\n")
+	_, err = FormatVersion(dir)
+	assert.Error(t, err, assert.AnyError)
+}
+
+func TestReleaseName(t *testing.T) {
+	dir := t.TempDir()
+	assert.NoError(t, os.WriteFile(filepath.Join(dir, "chisel.yaml"),
+		[]byte("format: v3\nrelease: ubuntu-24.04\n"), 0644))
+	r, err := ReleaseName(dir)
+	assert.NoError(t, err)
+	assert.Equal(t, r, "ubuntu-24.04")
+}

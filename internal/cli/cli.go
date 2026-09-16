@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lczyk/chisel-proxy/internal/bin"
 	"github.com/lczyk/chisel-proxy/internal/deb"
 	vinfo "github.com/lczyk/chisel-proxy/src/version"
 	ver "github.com/lczyk/version/go"
@@ -118,40 +119,70 @@ func parseArgs(args []string, forCut bool) (f flags, pos, fwd []string, err erro
 	return f, pos, fwd, nil
 }
 
-// buildInputs classifies each path by kind: a directory is packed into a
-// package, a .deb file is read as a package, and a .yaml/.yml file is a slice
-// definition to splice into the release (cut only).
-func buildInputs(paths []string, def deb.Defaults) (pkgs []*deb.Package, slices []string, err error) {
+// buildInputs classifies each path by kind, following chisel's own bin- naming
+// convention:
+//   - a bin-*/ directory        -> packed as a bin package
+//   - any other directory       -> packed as a deb package
+//   - a .deb file               -> deb package, served as-is
+//   - a .tar.xz file            -> bin package, served as-is
+//   - a .yaml/.yml file         -> slice definition, spliced into the release
+func buildInputs(paths []string, def deb.Defaults) (pkgs []*deb.Package, bins []*bin.Bin, slices []string, err error) {
 	if len(paths) == 0 {
-		return nil, nil, fmt.Errorf("no inputs given")
+		return nil, nil, nil, fmt.Errorf("no inputs given")
+	}
+	binDef := func(base string) bin.Defaults {
+		return bin.Defaults{Name: binRealName(base), Arch: def.Arch, Version: def.Version}
 	}
 	for _, p := range paths {
 		fi, err := os.Stat(p)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
+		base := filepath.Base(p)
 		if fi.IsDir() {
-			pkg, err := deb.FromDir(p, def)
-			if err != nil {
-				return nil, nil, err
+			if strings.HasPrefix(base, "bin-") {
+				b, err := bin.FromDir(p, binDef(base))
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				bins = append(bins, b)
+			} else {
+				pkg, err := deb.FromDir(p, def)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				pkgs = append(pkgs, pkg)
 			}
-			pkgs = append(pkgs, pkg)
 			continue
 		}
-		switch strings.ToLower(filepath.Ext(p)) {
-		case ".deb":
+		switch {
+		case strings.HasSuffix(base, ".deb"):
 			pkg, err := deb.FromFile(p)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			pkgs = append(pkgs, pkg)
-		case ".yaml", ".yml":
+		case strings.HasSuffix(base, ".tar.xz"):
+			b, err := bin.FromTarXZ(p, binDef(base))
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			bins = append(bins, b)
+		case strings.HasSuffix(base, ".yaml"), strings.HasSuffix(base, ".yml"):
 			slices = append(slices, p)
+		case strings.HasSuffix(base, ".tar.gz"):
+			return nil, nil, nil, fmt.Errorf("%s: chisel bins are .tar.xz, not .tar.gz", p)
 		default:
-			return nil, nil, fmt.Errorf("%s: not a .deb, a .yaml slice, or a directory", p)
+			return nil, nil, nil, fmt.Errorf("%s: not a .deb, .tar.xz, .yaml, or a directory", p)
 		}
 	}
-	return pkgs, slices, nil
+	return pkgs, bins, slices, nil
+}
+
+// binRealName strips the bin- prefix and any .tar.xz suffix from a payload
+// basename to get the store realname (e.g. "bin-foo" or "foo.tar.xz" -> "foo").
+func binRealName(base string) string {
+	return strings.TrimPrefix(strings.TrimSuffix(base, ".tar.xz"), "bin-")
 }
 
 func resolveArch(a string) (string, error) {
@@ -177,9 +208,14 @@ usage:
   chisel-proxy version
 
 each positional is one of:
-  <deb>         a .deb file, served as-is
-  <dir>         a directory, packed into a .deb (honouring DEBIAN/control if present)
-  <slice.yaml>  a slice definition, spliced into the release checkout (cut only)
+  <deb>          a .deb file, served as-is
+  <dir>          a directory, packed into a .deb (honouring DEBIAN/control if present)
+  bin-<name>/    a directory, packed into a bin package (cut only; Linux only)
+  <name>.tar.xz  a prebuilt bin tarball, served as-is (cut only; Linux only)
+  <slice.yaml>   a slice definition, spliced into the release checkout (cut only)
+
+a bin package is served to chisel over a TLS-intercepted snap store and needs a
+matching bin-<name>.yaml slice among the inputs and a format v3+ release.
 
 flags:
   --release <dir>   chisel-releases checkout to inject into (cut; default ".")

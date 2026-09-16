@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -189,6 +190,46 @@ func firstArchiveVersion(archives *yaml.Node) string {
 		}
 	}
 	return ""
+}
+
+// ReleaseName returns the top-level `release:` field of the checkout's
+// chisel.yaml, which chisel uses to build the bin channel track. Empty if the
+// field is absent (formats before bins).
+func ReleaseName(dir string) (string, error) {
+	b, err := os.ReadFile(filepath.Join(dir, "chisel.yaml"))
+	if err != nil {
+		return "", err
+	}
+	var doc struct {
+		Release string `yaml:"release"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return "", err
+	}
+	return doc.Release, nil
+}
+
+// FormatVersion returns the numeric chisel.yaml format version (e.g. 3 for
+// "v3"). chisel supports bin packages only from format v3.
+func FormatVersion(dir string) (int, error) {
+	b, err := os.ReadFile(filepath.Join(dir, "chisel.yaml"))
+	if err != nil {
+		return 0, err
+	}
+	var doc struct {
+		Format string `yaml:"format"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return 0, err
+	}
+	if !strings.HasPrefix(doc.Format, "v") {
+		return 0, fmt.Errorf("chisel.yaml: unexpected format %q", doc.Format)
+	}
+	n, err := strconv.Atoi(strings.TrimPrefix(doc.Format, "v"))
+	if err != nil {
+		return 0, fmt.Errorf("chisel.yaml: unexpected format %q", doc.Format)
+	}
+	return n, nil
 }
 
 // RenderBlocks renders the archives: and public-keys: entries as pasteable YAML
