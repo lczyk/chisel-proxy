@@ -40,12 +40,12 @@ CHISEL=/path/to/chisel-with-bins chisel-proxy cut --release ./chisel-releases \
     bin-demo-hello/ bin-demo-hello.yaml -- bin-demo-hello_bins --root ./rootfs
 ```
 
-bins are Linux only (Go ignores `SSL_CERT_FILE` elsewhere), need a format v3+ checkout (matching chisel), and need a bins-capable chisel on `CHISEL`. each bin payload needs a matching `bin-<name>.yaml` slice among the inputs, and vice versa.
+bins need a format v3+ checkout (matching chisel) and a bins-capable chisel on `CHISEL`. they work on Linux, and on macOS with a chisel built with Go 1.27+ (its `crypto/x509` honours `SSL_CERT_FILE` there; chisel-proxy checks the binary and refuses older builds). each bin payload needs a matching `bin-<name>.yaml` slice among the inputs, and vice versa.
 
 ## examples
 
 - `examples/deb/` -- inject a `.deb`, runs anywhere with `chisel` + network.
-- `examples/bin/` -- inject a bin over the TLS-intercepted snap store (Linux, bins-capable `CHISEL`).
+- `examples/bin/` -- inject a bin over the TLS-intercepted snap store (Linux, or macOS with a Go 1.27+ chisel; bins-capable `CHISEL`).
 
 ## build
 
