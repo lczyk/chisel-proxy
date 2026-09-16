@@ -1,0 +1,9 @@
+package: demo-hello
+
+slices:
+  bins:
+    contents:
+      /usr/bin/demo-hello:
+  docs:
+    contents:
+      /usr/share/doc/demo-hello/README:

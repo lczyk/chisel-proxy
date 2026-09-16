@@ -1,0 +1,15 @@
+# build output
+bin/
+/chisel-proxy
+/generate-version
+
+# coverage
+cover.out
+cover.html
+
+# editor / os noise
+.DS_Store
+*.swp
+
+# go test binaries
+*.test
