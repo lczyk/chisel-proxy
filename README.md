@@ -1,8 +1,6 @@
 # chisel-proxy
 
-serve your own `.deb`s to [chisel](https://github.com/canonical/chisel) without
-uploading them to an archive first. lets you write and test slice definitions
-for a package before it lands upstream.
+developement tool for [debcrafting](https://github.com/canonical/debcraft), [chisel](https://github.com/canonical/chisel) and [chisel-releases](https://github.com/canonical/chisel-releases). it lets you serve your own `.deb`s to chisel without uploading them to an archive first, which lets you write and test slice definitions for a package before it lands upstream.
 
 ## why
 
