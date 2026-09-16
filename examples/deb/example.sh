@@ -14,7 +14,7 @@
 RELEASE="${RELEASE:-ubuntu-24.04}"
 PKG="demo-hello"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-REPO="$(cd "$HERE/.." && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"
 WORK="$HERE/work"
 CHISEL="${CHISEL:-chisel}"
 

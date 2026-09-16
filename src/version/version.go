@@ -3,8 +3,8 @@
 package version
 
 var (
-	Version   = "0.0.0"
-	CommitSHA = "unknown"
-	BuildDate = "unknown"
-	BuildInfo = "dev"
+	Version   = "0.1.0"
+	CommitSHA = "30e9d853cd61e9ca8d6cfbc561cb6afd625ae465"
+	BuildDate = "2026-09-16T15:18:00Z"
+	BuildInfo = "dirty"
 )

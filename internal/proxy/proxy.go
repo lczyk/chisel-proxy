@@ -15,13 +15,36 @@ import (
 	"github.com/lczyk/chisel-proxy/internal/apt"
 )
 
-// Proxy serves one archive and passes everything else through.
+// Proxy serves one archive and passes everything else through. When bin MITM is
+// enabled it also terminates TLS for a set of hosts and answers them from a
+// handler (the fake bin store).
 type Proxy struct {
 	archive  *apt.Archive
 	direct   http.RoundTripper
 	logger   *log.Logger
 	local    atomic.Int64
 	upstream atomic.Int64
+
+	ca         *certAuthority
+	binHandler http.Handler
+	mitmHosts  map[string]bool
+}
+
+// EnableMITM turns on TLS interception for the given hosts, answering them from
+// h. It returns the ephemeral CA certificate in PEM form, which the caller must
+// hand to chisel via SSL_CERT_FILE so the forged certs are trusted.
+func (p *Proxy) EnableMITM(hosts []string, h http.Handler) ([]byte, error) {
+	ca, err := newCertAuthority()
+	if err != nil {
+		return nil, err
+	}
+	p.ca = ca
+	p.binHandler = h
+	p.mitmHosts = make(map[string]bool, len(hosts))
+	for _, host := range hosts {
+		p.mitmHosts[host] = true
+	}
+	return ca.CertPEM(), nil
 }
 
 // New builds a proxy for a. logger may be nil.
@@ -36,8 +59,7 @@ func New(a *apt.Archive, logger *log.Logger) *Proxy {
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodConnect {
-		// https upstream does not use http_proxy, so CONNECT should not reach us.
-		http.Error(w, "CONNECT not supported", http.StatusMethodNotAllowed)
+		p.handleConnect(w, r)
 		return
 	}
 	if p.archive.Match(r.URL.Path) {

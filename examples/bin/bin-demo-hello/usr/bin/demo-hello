@@ -1,0 +1,2 @@
+#!/bin/sh
+printf "hello from a chisel-proxy bin\n"
