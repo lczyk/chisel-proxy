@@ -210,12 +210,13 @@ usage:
 each positional is one of:
   <deb>          a .deb file, served as-is
   <dir>          a directory, packed into a .deb (honouring DEBIAN/control if present)
-  bin-<name>/    a directory, packed into a bin package (cut only; Linux only)
-  <name>.tar.xz  a prebuilt bin tarball, served as-is (cut only; Linux only)
+  bin-<name>/    a directory, packed into a bin package (cut only)
+  <name>.tar.xz  a prebuilt bin tarball, served as-is (cut only)
   <slice.yaml>   a slice definition, spliced into the release checkout (cut only)
 
 a bin package is served to chisel over a TLS-intercepted snap store and needs a
-matching bin-<name>.yaml slice among the inputs and a format v3+ release.
+matching bin-<name>.yaml slice among the inputs and a format v3+ release. works
+on Linux, and on macOS with a chisel built with Go 1.27+ (SSL_CERT_FILE).
 
 flags:
   --release <dir>   chisel-releases checkout to inject into (cut; default ".")

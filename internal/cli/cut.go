@@ -47,6 +47,10 @@ func runCut(args []string) int {
 	if releaseDir == "" {
 		releaseDir = "."
 	}
+	chiselBin := os.Getenv("CHISEL")
+	if chiselBin == "" {
+		chiselBin = "chisel"
+	}
 
 	pkgs, bins, sliceFiles, err := buildInputs(pos, deb.Defaults{Arch: arch, Version: f.version})
 	if err != nil {
@@ -68,11 +72,11 @@ func runCut(args []string) int {
 	// Bin packages: pair each to its "bin-" slice and compute the channel track
 	// chisel will resolve.
 	if len(bins) > 0 {
-		// The bin path trusts our interception CA via SSL_CERT_FILE, which Go
-		// only honours on Linux; fail early elsewhere instead of a cryptic TLS
-		// error.
-		if runtime.GOOS != "linux" {
-			errf(fmt.Errorf("bin injection is only supported on Linux (it relies on SSL_CERT_FILE, ignored by Go on %s); run chisel-proxy in a Linux container", runtime.GOOS))
+		// The bin path trusts our interception CA via SSL_CERT_FILE: always
+		// honoured on Linux, and on macOS only by a chisel built with Go 1.27+.
+		// Fail early instead of a cryptic TLS error.
+		if err := checkBinPlatform(chiselBin); err != nil {
+			errf(err)
 			return 1
 		}
 		// chisel supports bin packages only from format v3; follow that.
@@ -145,11 +149,6 @@ func runCut(args []string) int {
 		defer func() { _ = os.RemoveAll(cacheDir) }()
 	}
 
-	chiselBin := os.Getenv("CHISEL")
-	if chiselBin == "" {
-		chiselBin = "chisel"
-	}
-
 	cmd := exec.Command(chiselBin, append([]string{"cut", "--release", tmpRelease}, fwd...)...)
 	// Pass the full environment through (chisel may rely on more of it in
 	// future); our entries come last so they win over any inherited copy.
@@ -166,6 +165,11 @@ func runCut(args []string) int {
 			"HTTPS_PROXY=http://"+addr,
 			"SSL_CERT_FILE="+caFile,
 		)
+		if runtime.GOOS == "darwin" {
+			// Go 1.27+ honours SSL_CERT_FILE on darwin only behind this GODEBUG,
+			// and chisel's go.mod pins the old default, so set it explicitly.
+			env = append(env, "GODEBUG="+mergeGODEBUG(os.Getenv("GODEBUG"), "x509sslcertoverrideplatform=1"))
+		}
 	}
 	cmd.Env = env
 	cmd.Stdin = os.Stdin
@@ -229,12 +233,9 @@ func assignBinTracks(bins []*bin.Bin, sliceFiles []string, releaseName string) e
 // followed by the proxy's ephemeral CA to a temp file, for SSL_CERT_FILE.
 func writeCABundle(caPEM []byte) (string, error) {
 	var buf []byte
-	for _, p := range []string{"/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt"} {
-		if b, err := os.ReadFile(p); err == nil {
-			buf = append(buf, b...)
-			buf = append(buf, '\n')
-			break
-		}
+	if sys := systemRootsPEM(); sys != nil {
+		buf = append(buf, sys...)
+		buf = append(buf, '\n')
 	}
 	buf = append(buf, caPEM...)
 	f, err := os.CreateTemp("", "chisel-proxy-ca-*.pem")

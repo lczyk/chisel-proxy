@@ -10,9 +10,9 @@
 # and serves it over a TLS-intercepted snap store, while everything else comes
 # from the real archive.
 #
-# Linux only: the interception relies on SSL_CERT_FILE, which Go ignores
-# elsewhere. Also needs a bins-capable chisel (built from a branch with bin
-# support); point CHISEL at it:
+# The interception relies on SSL_CERT_FILE: honoured on Linux, and on macOS by
+# a chisel built with Go 1.27+. Needs a bins-capable chisel (built from a branch
+# with bin support); point CHISEL at it:
 #   CHISEL=/path/to/chisel-with-bins ./examples/bin/example.sh
 
 PKG="demo-hello"
@@ -20,10 +20,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 WORK="$HERE/work"
 
-if [ "$(uname -s)" != "Linux" ]; then
-    printf 'example: bin injection is Linux only (Go ignores SSL_CERT_FILE elsewhere)\n' >&2
-    exit 1
-fi
+case "$(uname -s)" in
+    (Linux|Darwin) ;;
+    (*) printf 'example: bin injection needs Linux, or macOS with a chisel built with Go 1.27+\n' >&2; exit 1 ;;
+esac
 if [ -z "$CHISEL" ] || ! command -v "$CHISEL" >/dev/null 2>&1; then
     printf 'example: set CHISEL to a bins-capable chisel (built from a branch with bin support)\n' >&2
     exit 1
