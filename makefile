@@ -3,7 +3,9 @@
 SRCS := $(shell find ./cmd ./internal ./pkg -name '*.go') version.go VERSION
 
 # The library lives in its own module under ./pkg, so per-module checks run in
-# both; ./... never crosses a module boundary.
+# both; ./... never crosses a module boundary. deadcode runs from the binary's
+# module only and ignores pkg/, where exported API the binary does not use is
+# not dead.
 MODULES := . ./pkg
 
 # Lint tools run via `go run`, pinned so a new release cannot fail the build
@@ -50,7 +52,7 @@ lint:  ## go vet + staticcheck + deadcode + gofmt check (no writes)
 	@for m in $(MODULES); do \
 		(cd $$m && go vet ./... && go run $(STATICCHECK) ./...) || exit 1; \
 	done
-	@out=$$(go run $(DEADCODE) -test ./...); \
+	@out=$$(go run $(DEADCODE) -test ./... | grep -v '^pkg/'); \
 	if [ -n "$$out" ]; then echo "Unreachable code:"; echo "$$out"; exit 1; fi
 	@out=$$(gofmt -s -l ./cmd ./internal ./pkg version.go); \
 	if [ -n "$$out" ]; then echo "Unformatted files:"; echo "$$out"; exit 1; fi
