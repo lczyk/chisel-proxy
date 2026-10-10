@@ -14,15 +14,19 @@ import (
 	"github.com/lczyk/chisel-proxy/internal/sign"
 )
 
-func runCut(args []string) int {
+// runChisel runs "chisel <verb> --release <temp-copy> <forwarded args>" against
+// the full setup: proxy archive, injected release copy, spliced slices and a
+// throwaway cache. The setup never depends on verb, so every verb sees exactly
+// what cut sees.
+func runChisel(verb string, args []string) int {
 	f, pos, fwd, err := parseArgs(args, true)
 	if err != nil {
 		errf(err)
 		return 2
 	}
 	if len(fwd) == 0 {
-		errf(fmt.Errorf("cut needs chisel arguments after '--', e.g.:\n" +
-			"  chisel-proxy cut ./foo.deb -- foo_bins --root ./rootfs"))
+		errf(fmt.Errorf("%s needs chisel arguments after '--', e.g.:\n"+
+			"  chisel-proxy %s ./foo.deb -- foo_bins", verb, verb))
 		return 2
 	}
 	for _, a := range fwd {
@@ -82,7 +86,7 @@ func runCut(args []string) int {
 		defer func() { _ = cleanupRel() }()
 	}
 
-	// A throwaway cache so every cut starts clean: no cross-run contamination.
+	// A throwaway cache so every run starts clean: no cross-run contamination.
 	cacheDir, err := os.MkdirTemp("", "chisel-proxy-cache-*")
 	if err != nil {
 		errf(err)
@@ -99,7 +103,7 @@ func runCut(args []string) int {
 		chiselBin = "chisel"
 	}
 
-	cmd := exec.Command(chiselBin, append([]string{"cut", "--release", tmpRelease}, fwd...)...)
+	cmd := exec.Command(chiselBin, append([]string{verb, "--release", tmpRelease}, fwd...)...)
 	// Pass the full environment through (chisel may rely on more of it in
 	// future); our three entries come last so they win over any inherited copy.
 	cmd.Env = append(os.Environ(),

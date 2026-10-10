@@ -22,6 +22,12 @@ each positional before `--` is one of:
 
 everything after `--` is forwarded to real `chisel cut`. your checkout is never touched: chisel-proxy copies it to a temp dir, injects the archive + public key + your slices there, and points chisel at the copy. a throwaway cache is used per run so every cut starts clean, and chisel's exit code is passed through. the `chisel` binary is found on `PATH`, or set `CHISEL=/path/to/chisel`.
 
+`info` takes the same positionals and flags and forwards to `chisel info` instead. it gets the identical setup, so it sees exactly the release `cut` would see:
+
+```shell
+chisel-proxy info ./demo-hello.yaml -- demo-hello_bins
+```
+
 you can also just run the proxy and wire chisel up yourself:
 
 ```shell

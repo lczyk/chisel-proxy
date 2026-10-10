@@ -2,14 +2,16 @@
 
 // Package e2e drives a real `chisel cut` through the proxy: it packs a demo
 // package, injects it into a real chisel-releases clone, cuts a rootfs, and
-// checks the package landed. Gated behind the e2e build tag and CHISEL_PROXY_E2E
+// checks the package landed. It also runs `chisel info` on a spliced slice. Gated behind the e2e build tag and CHISEL_PROXY_E2E
 // because it needs the chisel binary and network access to the real archive.
 package e2e
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/lczyk/chisel-proxy/internal/cli"
@@ -27,7 +29,8 @@ func mustWrite(t *testing.T, p, content string, mode os.FileMode) {
 	}
 }
 
-func TestCutInjectsPackageThroughProxy(t *testing.T) {
+func requireE2E(t *testing.T) {
+	t.Helper()
 	if os.Getenv("CHISEL_PROXY_E2E") != "1" {
 		t.Skip("set CHISEL_PROXY_E2E=1 to run (needs chisel + network)")
 	}
@@ -41,7 +44,70 @@ func TestCutInjectsPackageThroughProxy(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found")
 	}
+}
 
+// cloneRelease shallow-clones a real chisel-releases checkout under dir.
+func cloneRelease(t *testing.T, dir string) string {
+	t.Helper()
+	release := filepath.Join(dir, "releases")
+	clone := exec.Command("git", "clone", "--quiet", "--depth", "1", "-b", releaseBranch,
+		"https://github.com/canonical/chisel-releases", release)
+	clone.Stdout, clone.Stderr = os.Stderr, os.Stderr
+	if err := clone.Run(); err != nil {
+		t.Fatalf("clone chisel-releases: %v", err)
+	}
+	return release
+}
+
+// captureStdout runs fn with os.Stdout redirected to a pipe and returns what
+// it wrote. cli.Main hands os.Stdout straight to the chisel subprocess.
+func captureStdout(t *testing.T, fn func() int) (int, string) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stdout
+	os.Stdout = w
+	done := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	code := fn()
+	os.Stdout = orig
+	_ = w.Close()
+	return code, <-done
+}
+
+func TestInfoShowsSplicedSlice(t *testing.T) {
+	requireE2E(t)
+	tmp := t.TempDir()
+	release := cloneRelease(t, tmp)
+
+	// The slice lives outside the checkout; info must see it only via splicing.
+	slice := filepath.Join(tmp, "demo-hello.yaml")
+	mustWrite(t, slice,
+		"package: demo-hello\n\nslices:\n  bins:\n    contents:\n      /usr/bin/demo-hello:\n", 0644)
+
+	code, out := captureStdout(t, func() int {
+		return cli.Main([]string{"info", "--release", release, slice, "--", "demo-hello_bins"})
+	})
+	if code != 0 {
+		t.Fatalf("chisel-proxy info exited %d", code)
+	}
+	for _, want := range []string{"package: demo-hello", "bins:", "/usr/bin/demo-hello"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("chisel info output missing %q:\n%s", want, out)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(release, "slices", "demo-hello.yaml")); err == nil {
+		t.Fatalf("info modified the release checkout")
+	}
+}
+
+func TestCutInjectsPackageThroughProxy(t *testing.T) {
+	requireE2E(t)
 	tmp := t.TempDir()
 
 	// A demo package as a loose directory; chisel-proxy packs it. Its name comes
@@ -50,14 +116,7 @@ func TestCutInjectsPackageThroughProxy(t *testing.T) {
 	pkgDir := filepath.Join(tmp, "demo-hello")
 	mustWrite(t, filepath.Join(pkgDir, "usr", "bin", "demo-hello"), script, 0755)
 
-	// A real chisel-releases checkout.
-	release := filepath.Join(tmp, "releases")
-	clone := exec.Command("git", "clone", "--quiet", "--depth", "1", "-b", releaseBranch,
-		"https://github.com/canonical/chisel-releases", release)
-	clone.Stdout, clone.Stderr = os.Stderr, os.Stderr
-	if err := clone.Run(); err != nil {
-		t.Fatalf("clone chisel-releases: %v", err)
-	}
+	release := cloneRelease(t, tmp)
 
 	// Author a slice for the package. No `archive:` pin: this exercises chisel's
 	// priority fallback to the injected low-priority archive.
