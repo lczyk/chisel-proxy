@@ -76,7 +76,7 @@ func TestChiselVerbsSeeSameSetup(t *testing.T) {
 	t.Setenv("FAKE_CHISEL_OUT", out)
 
 	for _, verb := range []string{"cut", "info"} {
-		code := Main([]string{verb, "--release", rel, "--arch", "amd64", pkgDir, slice, "--", "demo_bins"})
+		code := Main([]string{verb, "--release", rel, pkgDir, slice, "--", "demo_bins"})
 		assert.Equal(t, code, 3)
 	}
 
@@ -110,5 +110,49 @@ func TestChiselVerbArgumentErrors(t *testing.T) {
 		t.Run(verb+" release forwarded", func(t *testing.T) {
 			assert.Equal(t, Main([]string{verb, "x.yaml", "--", "a_b", "--release=/r"}), 2)
 		})
+		t.Run(verb+" arch forwarded", func(t *testing.T) {
+			assert.Equal(t, Main([]string{verb, "x.yaml", "--", "a_b", "--arch", "amd64"}), 2)
+			assert.Equal(t, Main([]string{verb, "x.yaml", "--", "a_b", "--arch=amd64"}), 2)
+		})
+	}
+	t.Run("info arch", func(t *testing.T) {
+		assert.Equal(t, Main([]string{"info", "--arch", "amd64", "x.yaml", "--", "a_b"}), 2)
+	})
+}
+
+func TestCheckOwnedFlags(t *testing.T) {
+	assert.NoError(t, checkOwnedFlags("cut", flags{arch: "arm64"}, []string{"a_b", "--root", "/r"}))
+	assert.NoError(t, checkOwnedFlags("info", flags{}, []string{"a_b", "--archive"}))
+	assert.Error(t, checkOwnedFlags("info", flags{arch: "arm64"}, nil), "chisel info has no --arch")
+	assert.Error(t, checkOwnedFlags("info", flags{}, []string{"--arch=arm64"}), "chisel info has no --arch")
+	assert.Error(t, checkOwnedFlags("cut", flags{}, []string{"--arch", "arm64"}), "put it before '--'")
+	assert.Error(t, checkOwnedFlags("info", flags{}, []string{"--release", "/r"}), "put it before '--'")
+}
+
+func TestCutForwardsArchOnlyWhenGiven(t *testing.T) {
+	tmp := t.TempDir()
+	rel := filepath.Join(tmp, "release")
+	assert.NoError(t, os.MkdirAll(rel, 0755))
+	assert.NoError(t, os.WriteFile(filepath.Join(rel, "chisel.yaml"), []byte(
+		"format: v2\n\narchives:\n  ubuntu:\n    version: 24.04\n    components: [main]\n    suites: [noble]\n    priority: 20\n    public-keys: [ubuntu-key]\n\npublic-keys:\n  ubuntu-key:\n    id: \"0000000000000000\"\n    armor: |\n      placeholder\n"), 0644))
+	slice := filepath.Join(tmp, "demo.yaml")
+	assert.NoError(t, os.WriteFile(slice, []byte("package: demo\n"), 0644))
+	script := filepath.Join(tmp, "chisel")
+	assert.NoError(t, os.WriteFile(script, []byte(fakeChisel), 0755))
+	t.Setenv("CHISEL", script)
+
+	for _, tc := range []struct {
+		flags []string
+		want  []string
+	}{
+		{nil, []string{"demo_bins"}},
+		{[]string{"--arch", "arm64"}, []string{"--arch", "arm64", "demo_bins"}},
+	} {
+		out := t.TempDir()
+		t.Setenv("FAKE_CHISEL_OUT", out)
+		args := append(append([]string{"cut", "--release", rel}, tc.flags...), slice, "--", "demo_bins")
+		assert.Equal(t, Main(args), 3)
+		s := readSeen(t, filepath.Join(out, "cut"))
+		assert.EqualArrays(t, s.argv[3:], tc.want)
 	}
 }

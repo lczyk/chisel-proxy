@@ -14,9 +14,45 @@ import (
 	"github.com/lczyk/chisel-proxy/internal/sign"
 )
 
-// runChisel runs "chisel <verb> --release <temp-copy> <forwarded args>" against
-// the full setup: proxy archive, injected release copy, spliced slices and a
-// throwaway cache. The setup never depends on verb, so every verb sees exactly
+// ownedFlags are the chisel flags chisel-proxy takes before '--' and forwards
+// itself, each with why chisel must not get it straight from the user.
+var ownedFlags = []struct{ name, why string }{
+	{"release", "it points chisel at the injected temp copy"},
+	{"arch", "it also sets the architecture of the served archive"},
+}
+
+// verbFlags lists which owned flags each chisel verb accepts.
+var verbFlags = map[string]map[string]bool{
+	"cut":  {"release": true, "arch": true},
+	"info": {"release": true},
+}
+
+// checkOwnedFlags rejects owned flags after '--', and owned flags the chisel
+// verb itself would not accept.
+func checkOwnedFlags(verb string, f flags, fwd []string) error {
+	accepts := verbFlags[verb]
+	if f.arch != "" && !accepts["arch"] {
+		return fmt.Errorf("chisel %s has no --arch", verb)
+	}
+	for _, a := range fwd {
+		for _, o := range ownedFlags {
+			if a != "--"+o.name && !strings.HasPrefix(a, "--"+o.name+"=") {
+				continue
+			}
+			if !accepts[o.name] {
+				return fmt.Errorf("chisel %s has no --%s", verb, o.name)
+			}
+			return fmt.Errorf("--%s is chisel-proxy's own flag; put it before '--', not after (%s)", o.name, o.why)
+		}
+	}
+	return nil
+}
+
+// runChisel runs "chisel <verb> --release <temp-copy> [--arch <a>] <forwarded
+// args>" against the full setup: proxy archive, injected release copy, spliced
+// slices and a throwaway cache. --arch is forwarded only when given; otherwise
+// chisel picks its own default, which matches the inferred archive
+// architecture. The setup never depends on verb, so every verb sees exactly
 // what cut sees.
 func runChisel(verb string, args []string) int {
 	f, pos, fwd, err := parseArgs(args, true)
@@ -33,11 +69,9 @@ func runChisel(verb string, args []string) int {
 			"  chisel-proxy %s ./foo.deb -- %s", verb, verb, example))
 		return 2
 	}
-	for _, a := range fwd {
-		if a == "--release" || strings.HasPrefix(a, "--release=") {
-			errf(fmt.Errorf("--release is chisel-proxy's own flag; put it before '--', not after (it points chisel at the injected temp copy)"))
-			return 2
-		}
+	if err := checkOwnedFlags(verb, f, fwd); err != nil {
+		errf(err)
+		return 2
 	}
 
 	name := f.name
@@ -107,7 +141,11 @@ func runChisel(verb string, args []string) int {
 		chiselBin = "chisel"
 	}
 
-	cmd := exec.Command(chiselBin, append([]string{verb, "--release", tmpRelease}, fwd...)...)
+	chiselArgs := []string{verb, "--release", tmpRelease}
+	if f.arch != "" {
+		chiselArgs = append(chiselArgs, "--arch", arch)
+	}
+	cmd := exec.Command(chiselBin, append(chiselArgs, fwd...)...)
 	// Pass the full environment through (chisel may rely on more of it in
 	// future); our three entries come last so they win over any inherited copy.
 	cmd.Env = append(os.Environ(),
