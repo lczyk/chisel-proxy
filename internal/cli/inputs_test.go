@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/lczyk/assert"
-	"github.com/lczyk/chisel-proxy/internal/deb"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 func TestBuildInputsClassifies(t *testing.T) {

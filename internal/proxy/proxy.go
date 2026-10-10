@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/lczyk/chisel-proxy/internal/apt"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
 )
 
 // Proxy serves one archive and passes everything else through.

@@ -8,9 +8,8 @@ import (
 	"github.com/lczyk/assert"
 	"gopkg.in/yaml.v3"
 
-	"github.com/lczyk/chisel-proxy/internal/apt"
-	"github.com/lczyk/chisel-proxy/internal/deb"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 type yArch struct {
@@ -32,7 +31,7 @@ type yDoc struct {
 	PublicKeys map[string]yPub  `yaml:"public-keys"`
 }
 
-func testArchiveAndSigner(t *testing.T) (*apt.Archive, *sign.Signer) {
+func testArchive(t *testing.T) *apt.Archive {
 	t.Helper()
 	dir := t.TempDir()
 	pkgDir := filepath.Join(dir, "demo")
@@ -40,11 +39,9 @@ func testArchiveAndSigner(t *testing.T) (*apt.Archive, *sign.Signer) {
 	assert.NoError(t, os.WriteFile(filepath.Join(pkgDir, "usr", "bin", "demo"), []byte("hi"), 0755))
 	p, err := deb.FromDir(pkgDir, deb.Defaults{Arch: "amd64", Version: "1.0"})
 	assert.NoError(t, err)
-	signer, err := sign.New("t", "t@example.invalid")
+	a, err := apt.New("chisel-proxy", "amd64", []*deb.Package{p})
 	assert.NoError(t, err)
-	a, err := apt.New("chisel-proxy", "amd64", []*deb.Package{p}, signer)
-	assert.NoError(t, err)
-	return a, signer
+	return a
 }
 
 func TestPatchYAMLInjectsArchiveAndKey(t *testing.T) {
@@ -71,10 +68,10 @@ public-keys:
     armor: |
       placeholder
 `
-	a, signer := testArchiveAndSigner(t)
-	armor, err := signer.ArmoredPublicKey()
+	a := testArchive(t)
+	armor, err := a.PublicKey()
 	assert.NoError(t, err)
-	out, err := patchYAML([]byte(src), a, signer.KeyID(), armor, "")
+	out, err := patchYAML([]byte(src), a, a.KeyID(), armor, "")
 	assert.NoError(t, err)
 
 	var doc yDoc
@@ -100,7 +97,7 @@ public-keys:
 
 	key, ok := doc.PublicKeys["chisel-proxy-key"]
 	assert.That(t, ok, "proxy public key not added")
-	assert.Equal(t, key.ID, signer.KeyID())
+	assert.Equal(t, key.ID, a.KeyID())
 	assert.ContainsString(t, key.Armor, "BEGIN PGP PUBLIC KEY BLOCK")
 }
 
@@ -126,8 +123,8 @@ public-keys:
 	assert.NoError(t, os.MkdirAll(filepath.Join(src, "slices"), 0755))
 	assert.NoError(t, os.WriteFile(filepath.Join(src, "slices", "hello.yaml"), []byte("package: hello\n"), 0644))
 
-	a, signer := testArchiveAndSigner(t)
-	dir, cleanup, err := Inject(src, a, signer, "", nil)
+	a := testArchive(t)
+	dir, cleanup, err := Inject(src, a, "", nil)
 	assert.NoError(t, err)
 	defer func() { _ = cleanup() }()
 
@@ -151,8 +148,8 @@ func TestInjectSplicesSliceFiles(t *testing.T) {
 	sliceSrc := filepath.Join(t.TempDir(), "demo-hello.yaml")
 	assert.NoError(t, os.WriteFile(sliceSrc, []byte("package: demo-hello\n"), 0644))
 
-	a, signer := testArchiveAndSigner(t)
-	dir, cleanup, err := Inject(src, a, signer, "", []string{sliceSrc})
+	a := testArchive(t)
+	dir, cleanup, err := Inject(src, a, "", []string{sliceSrc})
 	assert.NoError(t, err)
 	defer func() { _ = cleanup() }()
 

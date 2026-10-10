@@ -10,9 +10,8 @@ import (
 	"testing"
 
 	"github.com/lczyk/assert"
-	"github.com/lczyk/chisel-proxy/internal/apt"
-	"github.com/lczyk/chisel-proxy/internal/deb"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 func testArchive(t *testing.T) *apt.Archive {
@@ -23,9 +22,7 @@ func testArchive(t *testing.T) *apt.Archive {
 	assert.NoError(t, os.WriteFile(filepath.Join(pkgDir, "usr", "bin", "demo"), []byte("hi"), 0755))
 	p, err := deb.FromDir(pkgDir, deb.Defaults{Arch: "amd64", Version: "1.0"})
 	assert.NoError(t, err)
-	signer, err := sign.New("t", "t@example.invalid")
-	assert.NoError(t, err)
-	a, err := apt.New("chisel-proxy", "amd64", []*deb.Package{p}, signer)
+	a, err := apt.New("chisel-proxy", "amd64", []*deb.Package{p})
 	assert.NoError(t, err)
 	return a
 }

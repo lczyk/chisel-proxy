@@ -14,9 +14,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/lczyk/chisel-proxy/internal/apt"
-	"github.com/lczyk/chisel-proxy/internal/deb"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 const (
@@ -30,17 +29,17 @@ const (
 // copy's slices/ directory (by basename, overwriting). It returns the copy's
 // path and a cleanup function. If version is "" it is taken from an existing
 // archive entry. The user's checkout is never modified.
-func Inject(src string, a *apt.Archive, signer *sign.Signer, version string, slicePaths []string) (dir string, cleanup func() error, err error) {
+func Inject(src string, a *apt.Archive, version string, slicePaths []string) (dir string, cleanup func() error, err error) {
 	srcYAML := filepath.Join(src, "chisel.yaml")
 	raw, err := os.ReadFile(srcYAML)
 	if err != nil {
 		return "", nil, fmt.Errorf("cannot read %s: %w", srcYAML, err)
 	}
-	armor, err := signer.ArmoredPublicKey()
+	armor, err := a.PublicKey()
 	if err != nil {
 		return "", nil, err
 	}
-	patched, err := patchYAML(raw, a, signer.KeyID(), armor, version)
+	patched, err := patchYAML(raw, a, a.KeyID(), armor, version)
 	if err != nil {
 		return "", nil, err
 	}

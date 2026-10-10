@@ -7,11 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/lczyk/chisel-proxy/internal/apt"
-	"github.com/lczyk/chisel-proxy/internal/deb"
 	"github.com/lczyk/chisel-proxy/internal/proxy"
 	"github.com/lczyk/chisel-proxy/internal/release"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 func runServe(args []string) int {
@@ -40,12 +39,7 @@ func runServe(args []string) int {
 		return 2
 	}
 
-	signer, err := sign.New("chisel-proxy", "chisel-proxy@localhost")
-	if err != nil {
-		errf(err)
-		return 1
-	}
-	archive, err := apt.New(name, arch, pkgs, signer)
+	archive, err := apt.New(name, arch, pkgs)
 	if err != nil {
 		errf(err)
 		return 1
@@ -59,7 +53,7 @@ func runServe(args []string) int {
 	}
 	defer func() { _ = stop() }()
 
-	if err := printServeInstructions(os.Stdout, addr, archive, signer, f.version); err != nil {
+	if err := printServeInstructions(os.Stdout, addr, archive, f.version); err != nil {
 		errf(err)
 		return 1
 	}
@@ -73,8 +67,8 @@ func runServe(args []string) int {
 	return 0
 }
 
-func printServeInstructions(w *os.File, addr string, archive *apt.Archive, signer *sign.Signer, version string) error {
-	armor, err := signer.ArmoredPublicKey()
+func printServeInstructions(w *os.File, addr string, archive *apt.Archive, version string) error {
+	armor, err := archive.PublicKey()
 	if err != nil {
 		return err
 	}
@@ -84,7 +78,7 @@ func printServeInstructions(w *os.File, addr string, archive *apt.Archive, signe
 	// A low suggested priority; the stub slice pins the archive anyway, so the
 	// exact value only matters if the package name also exists upstream.
 	const suggestedPriority = 1
-	archives, keys := release.RenderBlocks(archive, signer.KeyID(), armor, version, suggestedPriority)
+	archives, keys := release.RenderBlocks(archive, archive.KeyID(), armor, version, suggestedPriority)
 
 	fmt.Fprintf(w, "proxy listening on %s\n\n", addr)
 	fmt.Fprintf(w, "point chisel at it:\n  export http_proxy=http://%s\n\n", addr)
