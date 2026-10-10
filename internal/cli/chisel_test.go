@@ -88,6 +88,8 @@ func TestChiselVerbsSeeSameSetup(t *testing.T) {
 	assert.EqualArrays(t, cut.argv[1:2], []string{"--release"})
 	assert.EqualArrays(t, info.argv[1:2], []string{"--release"})
 	assert.EqualArrays(t, cut.argv[3:], info.argv[3:])
+	assert.NotEqual(t, cut.argv[2], rel)
+	assert.NotEqual(t, info.argv[2], rel)
 
 	assert.ContainsString(t, cut.proxy, "http://127.0.0.1:")
 	assert.ContainsString(t, info.proxy, "http://127.0.0.1:")
