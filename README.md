@@ -20,7 +20,7 @@ each positional before `--` is one of:
 - a directory, packed into a `.deb` on the fly (honouring `DEBIAN/control` if present, else fabricating one),
 - a `.yaml`/`.yml` slice definition, spliced into the release checkout for you.
 
-everything after `--` is forwarded to real `chisel cut`. your checkout is never touched: chisel-proxy copies it to a temp dir, injects the archive + public key + your slices there, and points chisel at the copy. a throwaway cache is used per run so every cut starts clean, and chisel's exit code is passed through. the `chisel` binary is found on `PATH`, or set `CHISEL=/path/to/chisel`.
+everything after `--` is forwarded to real `chisel cut` (or `chisel info`, see below). your checkout is never touched: chisel-proxy copies it to a temp dir, injects the archive + public key + your slices there, and points chisel at the copy. a throwaway cache is used per run so every run starts clean, and chisel's exit code is passed through. the `chisel` binary is found on `PATH`, or set `CHISEL=/path/to/chisel`.
 
 `info` takes the same positionals and flags and forwards to `chisel info` instead. it gets the identical setup, so it sees exactly the release `cut` would see:
 
@@ -43,5 +43,5 @@ see `example/`.
 ```shell
 make build      # ./bin/chisel-proxy
 make test       # unit tests
-make e2e        # real chisel cut through the proxy (needs chisel + network)
+make e2e        # real chisel cut + info through the proxy (needs chisel + network)
 ```

@@ -1,8 +1,8 @@
 // Package release wires a proxy's synthetic archive into a chisel-releases
-// checkout for `cut` mode: it copies the checkout to a temp dir and adds a
-// low-priority archive entry plus the ephemeral public key to the copy's
-// chisel.yaml, leaving the user's checkout untouched. It also renders the same
-// blocks as text for `serve` mode to print.
+// checkout for the forwarded chisel verbs (`cut`, `info`): it copies the
+// checkout to a temp dir and adds a low-priority archive entry plus the
+// ephemeral public key to the copy's chisel.yaml, leaving the user's checkout
+// untouched. It also renders the same blocks as text for `serve` mode to print.
 package release
 
 import (
