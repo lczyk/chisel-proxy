@@ -63,6 +63,7 @@ verify: lint test  ## Pre-commit gate: lint + test
 	@echo "All checks passed."
 
 .PHONY: clean
-clean:  ## Remove build artefacts
+clean:  ## Remove build artefacts and example output
 	rm -f ./bin/chisel-proxy
 	rm -f ./cover.out ./cover.html
+	rm -rf ./example/work ./examples/*/work
