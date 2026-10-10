@@ -25,8 +25,12 @@ func runChisel(verb string, args []string) int {
 		return 2
 	}
 	if len(fwd) == 0 {
+		example := "foo_bins"
+		if verb == "cut" {
+			example += " --root ./rootfs"
+		}
 		errf(fmt.Errorf("%s needs chisel arguments after '--', e.g.:\n"+
-			"  chisel-proxy %s ./foo.deb -- foo_bins", verb, verb))
+			"  chisel-proxy %s ./foo.deb -- %s", verb, verb, example))
 		return 2
 	}
 	for _, a := range fwd {
