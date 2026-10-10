@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	chiselproxy "github.com/lczyk/chisel-proxy"
-	"github.com/lczyk/chisel-proxy/internal/deb"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 	ver "github.com/lczyk/version/go"
 )
 

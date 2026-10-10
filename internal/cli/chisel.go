@@ -7,11 +7,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/lczyk/chisel-proxy/internal/apt"
-	"github.com/lczyk/chisel-proxy/internal/deb"
 	"github.com/lczyk/chisel-proxy/internal/proxy"
 	"github.com/lczyk/chisel-proxy/internal/release"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 // ownedFlags are the chisel flags chisel-proxy takes before '--' and forwards
@@ -94,12 +93,7 @@ func runChisel(verb string, args []string) int {
 		return 1
 	}
 
-	signer, err := sign.New("chisel-proxy", "chisel-proxy@localhost")
-	if err != nil {
-		errf(err)
-		return 1
-	}
-	archive, err := apt.New(name, arch, pkgs, signer)
+	archive, err := apt.New(name, arch, pkgs)
 	if err != nil {
 		errf(err)
 		return 1
@@ -113,7 +107,7 @@ func runChisel(verb string, args []string) int {
 	}
 	defer func() { _ = stop() }()
 
-	tmpRelease, cleanupRel, err := release.Inject(releaseDir, archive, signer, f.version, sliceFiles)
+	tmpRelease, cleanupRel, err := release.Inject(releaseDir, archive, f.version, sliceFiles)
 	if err != nil {
 		errf(err)
 		return 1

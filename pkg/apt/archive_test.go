@@ -11,8 +11,7 @@ import (
 	"testing"
 
 	"github.com/lczyk/assert"
-	"github.com/lczyk/chisel-proxy/internal/deb"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
 )
 
 func testPackage(t *testing.T) *deb.Package {
@@ -28,9 +27,7 @@ func testPackage(t *testing.T) *deb.Package {
 
 func testArchive(t *testing.T) *Archive {
 	t.Helper()
-	signer, err := sign.New("t", "t@example.invalid")
-	assert.NoError(t, err)
-	a, err := New("chisel-proxy", "amd64", []*deb.Package{testPackage(t)}, signer)
+	a, err := New("chisel-proxy", "amd64", []*deb.Package{testPackage(t)})
 	assert.NoError(t, err)
 	return a
 }
@@ -89,18 +86,22 @@ func TestServeRoutes(t *testing.T) {
 
 func TestNewRejectsDuplicatePackages(t *testing.T) {
 	p := testPackage(t)
-	signer, err := sign.New("t", "t@example.invalid")
-	assert.NoError(t, err)
-	_, err = New("chisel-proxy", "amd64", []*deb.Package{p, p}, signer)
+	_, err := New("chisel-proxy", "amd64", []*deb.Package{p, p})
 	assert.Error(t, err, assert.AnyError)
 }
 
 func TestNewEmptyArchive(t *testing.T) {
-	signer, err := sign.New("t", "t@example.invalid")
-	assert.NoError(t, err)
-	a, err := New("chisel-proxy", "amd64", nil, signer)
+	a, err := New("chisel-proxy", "amd64", nil)
 	assert.NoError(t, err)
 	body, _, ok := a.Serve("http://archive.ubuntu.com/ubuntu/dists/chisel-proxy/InRelease")
 	assert.That(t, ok, "empty archive should still serve InRelease")
 	assert.ContainsString(t, string(body), "BEGIN PGP SIGNED MESSAGE")
+}
+
+func TestKeyMatchesInRelease(t *testing.T) {
+	a := testArchive(t)
+	armor, err := a.PublicKey()
+	assert.NoError(t, err)
+	assert.ContainsString(t, armor, "BEGIN PGP PUBLIC KEY BLOCK")
+	assert.Len(t, a.KeyID(), 16)
 }

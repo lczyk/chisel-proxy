@@ -7,16 +7,15 @@ package release
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/lczyk/chisel-proxy/internal/apt"
-	"github.com/lczyk/chisel-proxy/internal/deb"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/apt"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
+	temprelease "github.com/lczyk/chisel-proxy/pkg/temp-release"
 )
 
 const (
@@ -30,46 +29,36 @@ const (
 // copy's slices/ directory (by basename, overwriting). It returns the copy's
 // path and a cleanup function. If version is "" it is taken from an existing
 // archive entry. The user's checkout is never modified.
-func Inject(src string, a *apt.Archive, signer *sign.Signer, version string, slicePaths []string) (dir string, cleanup func() error, err error) {
+func Inject(src string, a *apt.Archive, version string, slicePaths []string) (dir string, cleanup func() error, err error) {
 	srcYAML := filepath.Join(src, "chisel.yaml")
 	raw, err := os.ReadFile(srcYAML)
 	if err != nil {
 		return "", nil, fmt.Errorf("cannot read %s: %w", srcYAML, err)
 	}
-	armor, err := signer.ArmoredPublicKey()
+	armor, err := a.PublicKey()
 	if err != nil {
 		return "", nil, err
 	}
-	patched, err := patchYAML(raw, a, signer.KeyID(), armor, version)
+	patched, err := patchYAML(raw, a, a.KeyID(), armor, version)
 	if err != nil {
 		return "", nil, err
 	}
 
-	tmp, err := os.MkdirTemp("", "chisel-proxy-release-*")
+	rel, err := temprelease.Copy(src)
 	if err != nil {
 		return "", nil, err
 	}
-	cleanup = func() error { return os.RemoveAll(tmp) }
-	if err := copyTree(src, tmp); err != nil {
-		_ = cleanup()
-		return "", nil, err
-	}
-	if err := os.WriteFile(filepath.Join(tmp, "chisel.yaml"), patched, 0644); err != nil {
-		_ = cleanup()
-		return "", nil, err
-	}
-	slicesDir := filepath.Join(tmp, "slices")
-	if err := os.MkdirAll(slicesDir, 0755); err != nil {
-		_ = cleanup()
+	if err := rel.WriteChiselYAML(patched); err != nil {
+		_ = rel.Remove()
 		return "", nil, err
 	}
 	for _, sp := range slicePaths {
-		if err := copyFile(sp, filepath.Join(slicesDir, filepath.Base(sp)), 0644); err != nil {
-			_ = cleanup()
-			return "", nil, fmt.Errorf("cannot splice slice %s: %w", sp, err)
+		if err := rel.AddSlice(sp); err != nil {
+			_ = rel.Remove()
+			return "", nil, err
 		}
 	}
-	return tmp, cleanup, nil
+	return rel.Dir, rel.Remove, nil
 }
 
 func patchYAML(raw []byte, a *apt.Archive, keyID, armor, version string) ([]byte, error) {
@@ -283,58 +272,4 @@ func pubKeyNode(keyID, armor string) *yaml.Node {
 		strNode("armor"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: armor, Style: yaml.LiteralStyle},
 	)
 	return m
-}
-
-func copyTree(src, dst string) error {
-	return filepath.Walk(src, func(p string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, p)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
-		if rel == ".git" || strings.HasPrefix(rel, ".git"+string(os.PathSeparator)) {
-			if fi.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		target := filepath.Join(dst, rel)
-		switch {
-		case fi.IsDir():
-			return os.MkdirAll(target, fi.Mode().Perm())
-		case fi.Mode()&os.ModeSymlink != 0:
-			link, err := os.Readlink(p)
-			if err != nil {
-				return err
-			}
-			return os.Symlink(link, target)
-		default:
-			return copyFile(p, target, fi.Mode().Perm())
-		}
-	})
-}
-
-func copyFile(src, dst string, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
 }

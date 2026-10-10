@@ -1,7 +1,9 @@
 // Package apt synthesises an in-memory apt archive for a single synthetic suite:
-// a signed InRelease, a gzipped Packages index, and the input .debs. It serves
-// them for the archive.ubuntu.com paths chisel requests through the proxy. The
-// exact fields and paths here are dictated by chisel's internal/archive reader.
+// a signed InRelease, a gzipped Packages index, and the input .debs. The archive
+// signs itself with an ephemeral key generated per archive; KeyID and PublicKey
+// expose what a client needs to trust it. Match and Serve answer the paths an
+// apt client (chisel included) requests for the suite. The exact fields and
+// paths here are dictated by chisel's internal/archive reader.
 package apt
 
 import (
@@ -14,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lczyk/chisel-proxy/internal/deb"
-	"github.com/lczyk/chisel-proxy/internal/sign"
+	"github.com/lczyk/chisel-proxy/pkg/deb"
+	"github.com/lczyk/chisel-proxy/pkg/internal/sign"
 )
 
 // Archive is the synthesised, signed archive for one suite.
@@ -27,14 +29,19 @@ type Archive struct {
 	pkgs   []*deb.Package
 	byPool map[string]*deb.Package // pool-relative path -> package
 
+	signer      *sign.Signer
 	inRelease   []byte
 	packagesRaw []byte
 	packagesGz  []byte
 }
 
-// New synthesises and signs the archive. suite names the suite/codename and the
-// single component.
-func New(suite, arch string, pkgs []*deb.Package, signer *sign.Signer) (*Archive, error) {
+// New synthesises and signs the archive with a fresh ephemeral key. suite names
+// the suite/codename and the single component.
+func New(suite, arch string, pkgs []*deb.Package) (*Archive, error) {
+	signer, err := sign.New(suite, suite+"@localhost")
+	if err != nil {
+		return nil, err
+	}
 	// An empty archive is valid: a slice-only run still injects the archive and
 	// passes everything through to upstream.
 	a := &Archive{
@@ -43,6 +50,7 @@ func New(suite, arch string, pkgs []*deb.Package, signer *sign.Signer) (*Archive
 		Arch:      arch,
 		pkgs:      pkgs,
 		byPool:    make(map[string]*deb.Package, len(pkgs)),
+		signer:    signer,
 	}
 	for _, p := range pkgs {
 		pp := a.poolPath(p)
@@ -67,6 +75,13 @@ func New(suite, arch string, pkgs []*deb.Package, signer *sign.Signer) (*Archive
 
 // Packages returns the input packages.
 func (a *Archive) Packages() []*deb.Package { return a.pkgs }
+
+// KeyID returns the long key id of the signing key, in the form a chisel.yaml
+// public-key `id:` field takes.
+func (a *Archive) KeyID() string { return a.signer.KeyID() }
+
+// PublicKey returns the signing key's public half as an armored block.
+func (a *Archive) PublicKey() (string, error) { return a.signer.ArmoredPublicKey() }
 
 func (a *Archive) poolPath(p *deb.Package) string {
 	return fmt.Sprintf("pool/%s/%s_%s_%s.deb", a.Suite, p.Name, p.Version, p.Arch)
