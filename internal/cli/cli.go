@@ -198,13 +198,15 @@ flags:
   --release <dir>   chisel-releases checkout to inject into (cut, info; default ".")
   --port <n>        proxy port (default: auto-pick a free one)
   --name <s>        suite/component/archive name (default "chisel-proxy")
-  --arch <a>        Debian architecture (default: infer from host)
+  --arch <a>        Debian architecture (cut, serve; default: infer from host)
   --version <v>     packed-deb version / archive version (default "0.0.0" / from release)
   --keep            keep the temp release copy and cache dir (cut, info)
 
 cut and info run "chisel <verb> --release <temp-copy> <your args>" with
 http_proxy pointed at the proxy and a throwaway cache, then pass chisel's exit
 code through. both get the identical setup, so info sees exactly what cut sees.
+cut also forwards --arch to chisel when given. --release and --arch belong
+before '--', never after.
 serve brings the proxy up and prints the chisel.yaml blocks to paste yourself.
 `)
 }
