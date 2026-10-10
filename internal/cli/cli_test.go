@@ -33,6 +33,11 @@ func TestParseArgsBadPort(t *testing.T) {
 	assert.Error(t, err, assert.AnyError)
 }
 
+func TestFileVersionSkipsComments(t *testing.T) {
+	assert.Equal(t, fileVersion("# header\n\n  1.2.3  \n4.5.6\n"), "1.2.3")
+	assert.Equal(t, fileVersion("# only comments\n"), "")
+}
+
 func TestParseArgsDashDashLast(t *testing.T) {
 	_, pos, fwd, err := parseArgs([]string{"a.deb", "--"}, true)
 	assert.NoError(t, err)

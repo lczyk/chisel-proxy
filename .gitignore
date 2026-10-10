@@ -1,7 +1,6 @@
 # build output
 bin/
 /chisel-proxy
-/generate-version
 
 # coverage
 cover.out

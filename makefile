@@ -1,6 +1,6 @@
 .SUFFIXES:
 
-SRCS := $(shell find ./cmd ./internal ./src -name '*.go' ! -name 'version.go')
+SRCS := $(shell find ./cmd ./internal -name '*.go') version.go VERSION
 
 # Lint tools run via `go run`, pinned so a new release cannot fail the build
 # unannounced. staticcheck reads a toolchain's export data, so v0.8.x is the
@@ -16,16 +16,9 @@ help:  ## Show this help
 .PHONY: build
 build: ./bin/chisel-proxy  ## Build the binary into ./bin
 
-./bin/chisel-proxy: $(SRCS) generate-version makefile go.mod go.sum
+./bin/chisel-proxy: $(SRCS) makefile go.mod go.sum
 	mkdir -p ./bin
 	go build -o ./bin/chisel-proxy ./cmd/chisel-proxy
-
-# Best-effort: needs a git repo with at least one commit. A checked-in
-# version.go keeps build/test working before the first commit.
-.PHONY: generate-version
-generate-version:
-	@go run github.com/lczyk/version/go/cmd/generate-version -out ./src/version/version.go -pkg version 2>/dev/null \
-		|| echo "generate-version: skipped (needs a git repo with a commit); keeping existing version.go"
 
 .PHONY: install
 install: ./bin/chisel-proxy  ## Symlink the binary into ~/.local/bin
@@ -35,7 +28,7 @@ install: ./bin/chisel-proxy  ## Symlink the binary into ~/.local/bin
 ##@ checks
 
 .PHONY: test
-test: generate-version  ## Run the unit tests with the race detector
+test:  ## Run the unit tests with the race detector
 	@if command -v gotest >/dev/null 2>&1; then \
 		gotest -race ./...; \
 	else \
@@ -43,7 +36,7 @@ test: generate-version  ## Run the unit tests with the race detector
 	fi
 
 .PHONY: e2e
-e2e: generate-version  ## Run the end-to-end test (needs `chisel` + network; override CHISEL=..)
+e2e:  ## Run the end-to-end test (needs `chisel` + network; override CHISEL=..)
 	CHISEL_PROXY_E2E=1 go test -tags e2e -count=1 -v ./e2e/...
 
 .PHONY: lint
@@ -52,12 +45,12 @@ lint:  ## go vet + staticcheck + deadcode + gofmt check (no writes)
 	go run $(STATICCHECK) ./...
 	@out=$$(go run $(DEADCODE) -test ./...); \
 	if [ -n "$$out" ]; then echo "Unreachable code:"; echo "$$out"; exit 1; fi
-	@out=$$(gofmt -s -l ./cmd ./internal ./src); \
+	@out=$$(gofmt -s -l ./cmd ./internal version.go); \
 	if [ -n "$$out" ]; then echo "Unformatted files:"; echo "$$out"; exit 1; fi
 
 .PHONY: format
 format:  ## gofmt the tree in place
-	gofmt -s -w ./cmd ./internal ./src
+	gofmt -s -w ./cmd ./internal version.go
 
 .PHONY: cover
 cover:  ## Coverage profile + HTML report (cover.out, cover.html)
@@ -70,7 +63,6 @@ verify: lint test  ## Pre-commit gate: lint + test
 	@echo "All checks passed."
 
 .PHONY: clean
-clean:  ## Remove build artefacts and generated files
+clean:  ## Remove build artefacts
 	rm -f ./bin/chisel-proxy
-	rm -f ./src/version/version.go
 	rm -f ./cover.out ./cover.html

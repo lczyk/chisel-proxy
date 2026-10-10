@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	chiselproxy "github.com/lczyk/chisel-proxy"
 	"github.com/lczyk/chisel-proxy/internal/deb"
-	vinfo "github.com/lczyk/chisel-proxy/src/version"
 	ver "github.com/lczyk/version/go"
 )
 
@@ -28,7 +28,7 @@ func Main(args []string) int {
 	case "serve":
 		return runServe(args[1:])
 	case "version", "--version", "-v":
-		fmt.Println(ver.FormatVersion(vinfo.Version, vinfo.CommitSHA, vinfo.BuildDate, vinfo.BuildInfo))
+		fmt.Println(ver.Read(fileVersion(chiselproxy.VersionFile)))
 		return 0
 	case "help", "--help", "-h":
 		usage(os.Stdout)
@@ -152,6 +152,18 @@ func buildInputs(paths []string, def deb.Defaults) (pkgs []*deb.Package, slices 
 		}
 	}
 	return pkgs, slices, nil
+}
+
+// fileVersion returns the version line of a VERSION file: the first line that
+// is neither blank nor a # comment.
+func fileVersion(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			return line
+		}
+	}
+	return ""
 }
 
 func resolveArch(a string) (string, error) {
