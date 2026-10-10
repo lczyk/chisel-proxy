@@ -40,6 +40,18 @@ it prints the `http_proxy` line, the `chisel.yaml` blocks to paste, and a stub s
 
 see `example/`.
 
+## library
+
+the building blocks are importable as `github.com/lczyk/chisel-proxy/pkg`, a module of its own with a short dependency list:
+
+- `pkg/deb` -- build a `.deb` from a directory or read one back, no dpkg.
+- `pkg/apt` -- an in-memory, signed apt archive built from `.deb`s.
+- `pkg/temp-release` -- throwaway chisel-releases directories: a copy of a checkout or a fresh one, with slices spliced in.
+
+```shell
+go get github.com/lczyk/chisel-proxy/pkg
+```
+
 ## build
 
 ```shell
