@@ -23,8 +23,8 @@ func Main(args []string) int {
 		return 2
 	}
 	switch args[0] {
-	case "cut":
-		return runCut(args[1:])
+	case "cut", "info":
+		return runChisel(args[0], args[1:])
 	case "serve":
 		return runServe(args[1:])
 	case "version", "--version", "-v":
@@ -49,14 +49,14 @@ type flags struct {
 	keep    bool
 }
 
-// parseArgs pulls recognised flags and positionals out of args. When forCut is
+// parseArgs pulls recognised flags and positionals out of args. When forward is
 // true, a "--" token ends flag/positional parsing and everything after it is
 // returned as forwarded arguments.
-func parseArgs(args []string, forCut bool) (f flags, pos, fwd []string, err error) {
+func parseArgs(args []string, forward bool) (f flags, pos, fwd []string, err error) {
 	i := 0
 	for i < len(args) {
 		a := args[i]
-		if forCut && a == "--" {
+		if forward && a == "--" {
 			fwd = append(fwd, args[i+1:]...)
 			return f, pos, fwd, nil
 		}
@@ -120,7 +120,7 @@ func parseArgs(args []string, forCut bool) (f flags, pos, fwd []string, err erro
 
 // buildInputs classifies each path by kind: a directory is packed into a
 // package, a .deb file is read as a package, and a .yaml/.yml file is a slice
-// definition to splice into the release (cut only).
+// definition to splice into the release (chisel verbs only).
 func buildInputs(paths []string, def deb.Defaults) (pkgs []*deb.Package, slices []string, err error) {
 	if len(paths) == 0 {
 		return nil, nil, fmt.Errorf("no inputs given")
@@ -173,24 +173,26 @@ func usage(w io.Writer) {
 
 usage:
   chisel-proxy cut   [flags] <deb|dir|slice.yaml>... -- <chisel cut args>
+  chisel-proxy info  [flags] <deb|dir|slice.yaml>... -- <chisel info args>
   chisel-proxy serve [flags] <deb|dir>...
   chisel-proxy version
 
 each positional is one of:
   <deb>         a .deb file, served as-is
   <dir>         a directory, packed into a .deb (honouring DEBIAN/control if present)
-  <slice.yaml>  a slice definition, spliced into the release checkout (cut only)
+  <slice.yaml>  a slice definition, spliced into the release checkout (cut, info)
 
 flags:
-  --release <dir>   chisel-releases checkout to inject into (cut; default ".")
+  --release <dir>   chisel-releases checkout to inject into (cut, info; default ".")
   --port <n>        proxy port (default: auto-pick a free one)
   --name <s>        suite/component/archive name (default "chisel-proxy")
   --arch <a>        Debian architecture (default: infer from host)
   --version <v>     packed-deb version / archive version (default "0.0.0" / from release)
-  --keep            keep the temp release copy and cache dir (cut)
+  --keep            keep the temp release copy and cache dir (cut, info)
 
-cut runs "chisel cut --release <temp-copy> <your args>" with http_proxy pointed
-at the proxy and a throwaway cache, then passes chisel's exit code through.
+cut and info run "chisel <verb> --release <temp-copy> <your args>" with
+http_proxy pointed at the proxy and a throwaway cache, then pass chisel's exit
+code through. both get the identical setup, so info sees exactly what cut sees.
 serve brings the proxy up and prints the chisel.yaml blocks to paste yourself.
 `)
 }

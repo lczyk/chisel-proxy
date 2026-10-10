@@ -36,7 +36,7 @@ func runServe(args []string) int {
 		return 1
 	}
 	if len(sliceFiles) > 0 {
-		errf(fmt.Errorf("slice (.yaml) inputs only apply to 'cut'; serve has no release to splice into"))
+		errf(fmt.Errorf("slice (.yaml) inputs only apply to 'cut' and 'info'; serve has no release to splice into"))
 		return 2
 	}
 
