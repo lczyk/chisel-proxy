@@ -63,3 +63,23 @@ func TestInferArch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.That(t, ValidArch(a), "InferArch returned invalid arch: "+a)
 }
+
+func TestArchesAndCPUs(t *testing.T) {
+	all := Arches()
+	assert.EqualArrays(t, all, []string{"amd64", "arm64", "armhf", "i386", "ppc64el", "riscv64", "s390x"})
+	for _, a := range all {
+		assert.That(t, ValidArch(a), a)
+		assert.That(t, len(CPUs(a)) > 0, a)
+	}
+	for _, a := range archMap {
+		assert.That(t, ValidArch(a), a)
+	}
+	assert.That(t, !ValidArch("x86"))
+	assert.EqualArrays(t, CPUs("amd64"), []string{"x86_64"})
+	assert.EqualArrays(t, CPUs("i386"), []string{"i386", "i686"})
+	assert.Len(t, CPUs("x86"), 0)
+
+	// Copies: a caller cannot change the tables.
+	all[0] = "nope"
+	assert.Equal(t, Arches()[0], "amd64")
+}
