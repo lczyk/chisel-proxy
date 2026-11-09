@@ -2,7 +2,7 @@
 #
 # Inject a local .deb into a chiselled rootfs using chisel-proxy.
 #
-# The package payload (demo-hello/) and its slice definition (demo-hello.yaml)
+# The package payload (demo-hello/) and its package slices file (demo-hello.yaml)
 # live beside this script as real files. The script builds chisel-proxy, clones
 # a chisel-releases checkout, and cuts a rootfs, passing both the package dir and
 # the slice file as inputs (chisel-proxy packs the deb and splices the slice):

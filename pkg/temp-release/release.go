@@ -65,7 +65,7 @@ func (r *Release) WriteChiselYAML(b []byte) error {
 	return os.WriteFile(filepath.Join(r.Dir, "chisel.yaml"), b, 0644)
 }
 
-// AddSlice copies the slice definition file at path into slices/, by basename,
+// AddSlice copies the package slices file at path into slices/, by basename,
 // overwriting any existing file of that name.
 func (r *Release) AddSlice(path string) error {
 	if err := copyFile(path, filepath.Join(r.slicesDir(), filepath.Base(path)), 0644); err != nil {
