@@ -25,7 +25,7 @@ const (
 
 // Inject copies the chisel-releases checkout at src into a fresh temp directory,
 // adds the proxy archive (with the ephemeral public key inline) to that copy's
-// chisel.yaml, and splices each slice-definition file in slicePaths into the
+// chisel.yaml, and splices each package slices file in slicePaths into the
 // copy's slices/ directory (by basename, overwriting). It returns the copy's
 // path and a cleanup function. If version is "" it is taken from an existing
 // archive entry. The user's checkout is never modified.
@@ -203,7 +203,7 @@ func RenderBlocks(a *apt.Archive, keyID, armor, version string, priority int) (a
 	return ab.String(), kb.String()
 }
 
-// StubSlice renders a minimal slice-definition file pulling every path a package
+// StubSlice renders a minimal package slices file pulling every path a package
 // installs, pinned to the proxy archive. Printed by `serve`.
 func StubSlice(suite string, p *deb.Package) string {
 	var b strings.Builder

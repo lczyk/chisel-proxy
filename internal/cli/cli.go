@@ -192,7 +192,7 @@ usage:
 each positional is one of:
   <deb>         a .deb file, served as-is
   <dir>         a directory, packed into a .deb (honouring DEBIAN/control if present)
-  <slice.yaml>  a slice definition, spliced into the release checkout (cut, info)
+  <slice.yaml>  a package slices file, spliced into the release checkout (cut, info)
 
 flags:
   --release <dir>   chisel-releases checkout to inject into (cut, info; default ".")

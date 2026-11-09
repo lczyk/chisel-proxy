@@ -6,7 +6,7 @@
 ![GitHub Tag](https://img.shields.io/github/v/tag/lczyk/chisel-proxy?filter=v*&sort=semver&label=release)
 [![Go Reference](https://pkg.go.dev/badge/github.com/lczyk/chisel-proxy.svg)](https://pkg.go.dev/github.com/lczyk/chisel-proxy)
 
-developement tool for [debcrafting](https://github.com/canonical/debcraft), [chisel](https://github.com/canonical/chisel) and [chisel-releases](https://github.com/canonical/chisel-releases). it lets you serve your own `.deb`s to chisel without uploading them to an archive first, which lets you write and test slice definitions for a package before it lands upstream.
+developement tool for [debcrafting](https://github.com/canonical/debcraft), [chisel](https://github.com/canonical/chisel) and [chisel-releases](https://github.com/canonical/chisel-releases). it lets you serve your own `.deb`s to chisel without uploading them to an archive first, which lets you write and test package slices files for a package before it lands upstream.
 
 ## why
 
@@ -24,7 +24,7 @@ each positional before `--` is one of:
 
 - a `.deb` file, served as-is,
 - a directory, packed into a `.deb` on the fly (honouring `DEBIAN/control` if present, else fabricating one),
-- a `.yaml`/`.yml` slice definition, spliced into the release checkout for you.
+- a `.yaml`/`.yml` package slices file, spliced into the release checkout for you.
 
 everything after `--` is forwarded to real `chisel cut` (or `chisel info`, see below). your checkout is never touched: chisel-proxy copies it to a temp dir, injects the archive + public key + your slices there, and points chisel at the copy. a throwaway cache is used per run so every run starts clean, and chisel's exit code is passed through. the `chisel` binary is found on `PATH`, or set `CHISEL=/path/to/chisel`.
 
