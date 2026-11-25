@@ -67,24 +67,30 @@ func TestInferArch(t *testing.T) {
 	assert.That(t, ValidArch(a), "InferArch returned invalid arch: "+a)
 }
 
-func TestArchesAndCPUs(t *testing.T) {
+func TestArchesAndWords(t *testing.T) {
 	all := Arches()
 	assert.EqualArrays(t, all, []string{"amd64", "arm64", "armhf", "i386", "ppc64el", "riscv64", "s390x"})
 	for _, a := range all {
 		assert.That(t, ValidArch(a), a)
-		assert.That(t, len(CPUs(a)) > 0, a)
+		// An architecture's own name is its first word.
+		assert.Equal(t, Words(a)[0], a)
 	}
+	// Every architecture has words, and none but those chisel accepts.
+	assert.Len(t, words, len(all))
 	for _, a := range archMap {
 		assert.That(t, ValidArch(a), a)
 	}
 	assert.That(t, !ValidArch("x86"))
-	assert.EqualArrays(t, CPUs("amd64"), []string{"x86_64"})
-	assert.EqualArrays(t, CPUs("i386"), []string{"i386", "i686"})
-	assert.Len(t, CPUs("x86"), 0)
+	assert.EqualArrays(t, Words("amd64"), []string{"amd64", "x86_64", "x86-64", "x64", "x86"})
+	assert.EqualArrays(t, Words("i386"), []string{"i386", "i686", "x86", "386"})
+	assert.Len(t, Words("x86"), 0)
 
 	// Copies: a caller cannot change the tables.
 	all[0] = "nope"
 	assert.Equal(t, Arches()[0], "amd64")
+	w := Words("arm64")
+	w[0] = "nope"
+	assert.Equal(t, Words("arm64")[0], "arm64")
 }
 
 // A hard link is a path the package installs, as much as the file it links to.

@@ -23,17 +23,19 @@ var archMap = map[string]string{
 // lists them.
 var arches = []string{"amd64", "arm64", "armhf", "i386", "ppc64el", "riscv64", "s390x"}
 
-// cpus is the names an architecture's cpu goes by in paths: the cpu part of
-// the multiarch triplet (x86_64-linux-gnu) and, for i386, the i686 that
-// some packages use instead.
-var cpus = map[string][]string{
-	"amd64":   {"x86_64"},
-	"arm64":   {"aarch64"},
-	"armhf":   {"arm"},
-	"i386":    {"i386", "i686"},
-	"ppc64el": {"powerpc64le"},
-	"riscv64": {"riscv64"},
-	"s390x":   {"s390x"},
+// words is what names an architecture as a word of a path: its own name,
+// the cpu of its multiarch triplet, and what debian's cross toolchain
+// package names, java, go, dotnet, libunwind, ruby and the kernel's arch
+// directories call it. x86 is both amd64's and i386's, as in the kernel
+// headers' arch/x86.
+var words = map[string][]string{
+	"amd64":   {"amd64", "x86_64", "x86-64", "x64", "x86"},
+	"arm64":   {"arm64", "aarch64"},
+	"armhf":   {"armhf", "arm"},
+	"i386":    {"i386", "i686", "x86", "386"},
+	"ppc64el": {"ppc64el", "powerpc64le", "ppc64le", "ppc64"},
+	"riscv64": {"riscv64", "riscv"},
+	"s390x":   {"s390x", "s390"},
 }
 
 // Arches lists every Debian architecture chisel accepts, in the order ubuntu
@@ -42,10 +44,11 @@ func Arches() []string {
 	return append([]string(nil), arches...)
 }
 
-// CPUs lists the names arch's cpu goes by in paths, the multiarch triplet's
-// first part among them, or nil for an architecture chisel does not accept.
-func CPUs(arch string) []string {
-	return append([]string(nil), cpus[arch]...)
+// Words lists what names arch as a word of a path, its own name first, or
+// nil for an architecture chisel does not accept. Two architectures may
+// share a word. The slice is the caller's to keep.
+func Words(arch string) []string {
+	return append([]string(nil), words[arch]...)
 }
 
 // InferArch returns the Debian architecture for the running platform.
@@ -58,6 +61,6 @@ func InferArch() (string, error) {
 
 // ValidArch reports whether arch is a Debian architecture chisel accepts.
 func ValidArch(arch string) bool {
-	_, ok := cpus[arch]
+	_, ok := words[arch]
 	return ok
 }
