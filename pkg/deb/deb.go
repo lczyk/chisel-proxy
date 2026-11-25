@@ -1,6 +1,10 @@
 // Package deb builds a .deb from a directory and reads metadata back out of an
 // existing one, all in-process: no dpkg, no external tooling. The ar container
 // and gzip tarballs it writes are exactly what chisel's own reader consumes.
+//
+// Doing this by hand is deliberate. chisel-proxy has to hold a .deb before
+// chisel is asked anything, and chisel keeps its own deb code internal. A
+// tool that only wants to know what a package holds should cut it with chisel.
 package deb
 
 import (

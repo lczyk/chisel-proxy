@@ -7,7 +7,8 @@ import (
 
 // archMap mirrors chisel's own runtime-to-Debian architecture table so a
 // synthesised package labels itself the way chisel expects, without shelling
-// out to dpkg.
+// out to dpkg. chisel keeps its table internal, so the tables of this file
+// repeat it on purpose, and are the one copy other packages should take.
 var archMap = map[string]string{
 	"386":     "i386",
 	"amd64":   "amd64",
