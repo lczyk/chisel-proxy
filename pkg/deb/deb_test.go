@@ -1,6 +1,9 @@
 package deb
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,4 +85,27 @@ func TestArchesAndCPUs(t *testing.T) {
 	// Copies: a caller cannot change the tables.
 	all[0] = "nope"
 	assert.Equal(t, Arches()[0], "amd64")
+}
+
+// A hard link is a path the package installs, as much as the file it links to.
+func TestFromFileListsHardLinks(t *testing.T) {
+	var data bytes.Buffer
+	gz := gzip.NewWriter(&data)
+	tw := tar.NewWriter(gz)
+	assert.NoError(t, tw.WriteHeader(&tar.Header{Name: "./usr/bin/a", Typeflag: tar.TypeReg, Mode: 0755, Size: 1}))
+	_, err := tw.Write([]byte("x"))
+	assert.NoError(t, err)
+	assert.NoError(t, tw.WriteHeader(&tar.Header{Name: "./usr/bin/b", Typeflag: tar.TypeLink, Linkname: "./usr/bin/a", Mode: 0755}))
+	assert.NoError(t, tw.Close())
+	assert.NoError(t, gz.Close())
+	control, err := buildControlTar(fabricateControl("demo", "1.0", "amd64"))
+	assert.NoError(t, err)
+	raw, err := buildAr(control, data.Bytes())
+	assert.NoError(t, err)
+	p := filepath.Join(t.TempDir(), "demo.deb")
+	assert.NoError(t, os.WriteFile(p, raw, 0644))
+
+	pkg, err := FromFile(p)
+	assert.NoError(t, err)
+	assert.EqualArrays(t, pkg.Files, []string{"/usr/bin/a", "/usr/bin/b"})
 }

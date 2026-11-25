@@ -117,7 +117,7 @@ func readDataFiles(deb []byte) ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			if th.Typeflag == tar.TypeReg || th.Typeflag == tar.TypeSymlink {
+			if th.Typeflag == tar.TypeReg || th.Typeflag == tar.TypeSymlink || th.Typeflag == tar.TypeLink {
 				clean := path.Clean(strings.TrimPrefix(th.Name, "./"))
 				files = append(files, "/"+strings.TrimPrefix(clean, "/"))
 			}
