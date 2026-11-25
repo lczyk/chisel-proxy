@@ -5,6 +5,7 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/lczyk/chisel-proxy)
 ![GitHub Tag](https://img.shields.io/github/v/tag/lczyk/chisel-proxy?filter=v*&sort=semver&label=release)
 [![Go Reference](https://pkg.go.dev/badge/github.com/lczyk/chisel-proxy.svg)](https://pkg.go.dev/github.com/lczyk/chisel-proxy)
+[![lint_and_test](https://github.com/lczyk/chisel-proxy/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/lczyk/chisel-proxy/actions/workflows/lint_and_test.yml)
 
 developement tool for [debcrafting](https://github.com/canonical/debcraft), [chisel](https://github.com/canonical/chisel) and [chisel-releases](https://github.com/canonical/chisel-releases). it lets you serve your own `.deb`s to chisel without uploading them to an archive first, which lets you write and test package slices files for a package before it lands upstream.
 
