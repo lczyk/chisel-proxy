@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/lczyk/assert v0.7.2
-	github.com/lczyk/chisel-proxy/pkg v0.0.0-00010101000000-000000000000
+	github.com/lczyk/chisel-proxy/pkg v0.6.0
 	github.com/lczyk/version/go v0.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -18,5 +18,3 @@ require (
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 )
-
-replace github.com/lczyk/chisel-proxy/pkg => ./pkg
